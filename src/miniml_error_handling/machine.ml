@@ -31,6 +31,17 @@ type mvalue =
   | MBool of bool                      (** Boolean value *)
   | MClosure of name * frame * environ (** Closure *)
 
+type exception_value =
+  | NoException
+  | ExceptionValue of mvalue
+
+type machine_state = {
+  frames: frame list;
+  stack: stack;
+  envs: environ list;
+  exception_state: exception_value;
+}
+
 (**
    There are two kinds of machine instructions.
 
@@ -47,16 +58,19 @@ and instr =
   | IAdd                            (** addition *)
   | ISub                            (** subtraction *)
   | IEqual                          (** equality *)
-  | ILess                           (** less than *)
-  | IVar of name  		    (** push value of variable *)
-  | IInt of int   		    (** push integer constant *)
-  | IBool of bool 		    (** push boolean constant *)
+  | ILess                          (** less than *)
+  | IVar of name                   (** push value of variable *)
+  | IInt of int                    (** push integer constant *)
+  | IBool of bool                  (** push boolean constant *)
   | IClosure of name * name * frame (** push closure *)
-  | IBranch of frame * frame        (** branch *)
-  | ICall                           (** execute a closure *)
-  | IPopEnv                         (** pop environment *)
-  | IDiv                            (** division *)
-  | IRaise                          (** raise exception *)
+  | IBranch of frame * frame       (** branch *)
+  | ICall                          (** execute a closure *)
+  | IPopEnv                        (** pop environment *)
+  | IDiv                           (** division *)
+  | IRaise                         (** raise exception *)
+  | IPushHandler of frame          (** push exception handler *)
+  | IPopHandler                    (** pop exception handler *)
+  | IHandler                       (** marker for handler frame */)
 
 (** A frame is a list (stack) of instructions *)
 and frame = instr list
@@ -153,32 +167,62 @@ let exec instr frms stck envs =
     | IInt k  -> (frms, (MInt k) :: stck, envs)
     | IBool b -> (frms, (MBool b) :: stck, envs)
     | IClosure (f, x, frm) ->
-	(match envs with
-	     env :: _ ->
-	       let rec c = MClosure (x, frm, (f,c) :: env) in
-		 (frms, c :: stck, envs)
-	   | [] -> error "no environment for a closure")
+        match envs with
+        | env :: _ ->
+            let rec c = MClosure (x, frm, (f,c) :: env) in
+            (frms, c :: stck, envs)
+        | [] -> error "no environment for a closure"
     (* Control instructions *)
     | IBranch (f1, f2) ->
-	let (b, stck') = pop_bool stck in
-	  ((if b then f1 else f2) :: frms, stck', envs)
+        let (b, stck') = pop_bool stck in
+        ((if b then f1 else f2) :: frms, stck', envs)
     | ICall ->
-	let (x, frm, env, v, stck') = pop_app stck in
-	  (frm :: frms, stck', ((x,v) :: env) :: envs)
+        let (x, frm, env, v, stck') = pop_app stck in
+        (frm :: frms, stck', ((x,v) :: env) :: envs)
     | IPopEnv ->
-	(match envs with
-	     [] -> error "no environment to pop"
-	   | _ :: envs' -> (frms, stck, envs'))
+        match envs with
+        | [] -> error "no environment to pop"
+        | _ :: envs' -> (frms, stck, envs')
+    (* Exception handling *)
     | IRaise ->
-	let (v, stck') = pop stck in
-	  raise (Machine_error (string_of_mvalue v))
+        let (v, stck') = pop stck in
+        ({ frames = frms; stack = stck'; envs = envs; exception_state = ExceptionValue v })
+    | IPushHandler handler_frame ->
+        ((IHandler :: handler_frame) :: frms, stck, envs)
+    | IPopHandler ->
+        match frms with
+        | (IHandler :: _) :: rest_frames -> (rest_frames, stck, envs)
+        | _ -> (frms, stck, envs)  (* No handler to pop, continue normally *)
+    | IHandler -> (frms, stck, envs)  (* Marker instruction, no action needed *)
 
 (** [run frm env] executes the frame [frm] in environment [env]. *)
 let run frm env =
-  let rec loop = function
-    | ([], [v], _) -> v
-    | ((i::is) :: frms, stck, envs) -> loop (exec i (is::frms) stck envs)
-    | ([] :: frms, stck, envs) -> loop (frms, stck, envs)
+  let rec loop state =
+    match state with
+    | { frames = []; stack = [v]; envs = _; exception_state = NoException } -> v
+    | { frames = (i::is) :: frms; stack; envs; exception_state } ->
+        begin match exception_state with
+        | NoException -> 
+            let next_state = exec i (is::frms) stack envs in
+            loop next_state
+        | ExceptionValue v -> 
+            (* Look for a handler frame *)
+            match find_handler frms with
+            | Some (handler_frame, remaining_frames) ->
+                loop { frames = handler_frame :: remaining_frames;
+                      stack = v :: stack;
+                      envs;
+                      exception_state = NoException }
+            | None -> error ("Unhandled exception: " ^ string_of_mvalue v)
+        end
+    | { frames = [] :: frms; stack; envs; exception_state } ->
+        loop { frames = frms; stack; envs; exception_state }
     | _ -> error "illegal end of program"
+  and find_handler = function
+    | [] -> None
+    | frame :: rest ->
+        match frame with
+        | IHandler :: _ -> Some (frame, rest)
+        | _ -> find_handler rest
   in
-    loop ([frm], [], [env])
+    loop { frames = [frm]; stack = []; envs = [env]; exception_state = NoException }

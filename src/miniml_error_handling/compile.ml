@@ -19,5 +19,6 @@ let rec compile {Zoo.data=e'; _} =
     | Syntax.Divide (e1, e2) -> (compile e1) @ (compile e2) @ [IDiv]
     | Syntax.Raise e -> (compile e) @ [IRaise]
     | Syntax.TryWith (e1, e2) -> 
-        (* For now, just compile e1. Exception handling in abstract machine is complex *)
-        compile e1
+        [IPushHandler (compile e2)] @ (* Push exception handler *)
+        compile e1 @                  (* Protected code *)
+        [IPopHandler]                 (* Pop handler if no exception occurred *)
