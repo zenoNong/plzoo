@@ -1,5 +1,4 @@
-An implementation of an eager statically typed functional language with
-a compiler and an abstract machine.
+It is an assigment project under development where we extend simple miniml language to support error handling using try with block
 
 The language has the following constructs:
 
