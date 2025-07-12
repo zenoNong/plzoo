@@ -1,34 +1,83 @@
-It is an assigment project under development where we extend simple miniml language to support error handling using try with block
+# This is an Assignment project where I extend the basic miniml language to support for error and exception handling.
 
-The language has the following constructs:
+For better understanding please see the example.miniml_error_handling code file. There are many test cases you can try for this implementation.
+> More features will be added in the future too.
 
-* Integers with arithmetic operations `+`, `-` and `*`. (There is no
-  division because the language has no exceptions.)
-* Booleans with conditional statement and comparison of integers
-  `=` and `<`.
-* Recursive functions and function application. The expression
+## One example walkthrough to show the internal working how the interpreter is working to produce the result.
+- Consider the input: `try 3 / 0 with 42;;` 
+- The output will be: `42`.
 
-        fun f (x : t) : s is e
+Lets Analyse this part by part
 
-  denotes a function of type `t -> s` which maps `x` to `e`. In `e`
-  the function refers to itself as `f`.
+## 1. **Lexical Analysis (lexer.mll)**
 
-* Toplevel definitions
+**Input:**  
+```
+try 3 / 0 with 42;;
+```
 
-        let x = e
+**Tokens produced:**  
+- `TRY`
+- `INT 3`
+- `DIVIDE`
+- `INT 0`
+- `WITH`
+- `INT 42`
+- `SEMISEMI`
 
-  There are no local definitions.
+---
 
-Example interaction, see also the file `example.miniml`:
+## 2. **Parsing (parser.mly)**
 
-    MiniML. Press Ctrl-D to exit.
-    MiniML> 3 + (if 5 < 6 then 10 else 100) ;;
-    - : int = 13
-    MiniML> let x = 14 ;;
-    x : int = 14
-    MiniML> let fact = fun f (n : int) : int is if n = 0 then 1 else n * f (n-1) ;;
-    fact : int -> int = <fun>
-    MiniML> fact 10 ;;
-    - : int = 3628800
-    MiniML>
-    Good bye.
+**Tokens parsed into AST:**  
+The parser recognizes the structure as (showing in AST style):
+
+```ocaml
+TryWith (
+  Divide (Int 3, Int 0),
+  Int 42
+)
+```
+
+---
+
+## 3. **Type Checking(type_check.ml)**
+
+- `Divide (Int 3, Int 0)` is checked: both operands are `int`, so type is `int`.
+- `Int 42` is `int`.
+- Both branches of `TryWith` are `int`, so the whole expression is type `int`.
+
+---
+
+## 4. **Compilation (to Abstract Machine Instructions)**
+
+The AST is compiled to a list of instructions:
+```
+[ITryWith ([IInt 3; IInt 0; IDiv], [IInt 42])]
+```
+- The first frame computes `3 / 0`.
+- The second frame is the handler, which just pushes `42`.
+
+---
+
+## 5. **Execution (Abstract Machine)**
+
+- The machine starts executing the `ITryWith` instruction.
+- It runs the first frame:  
+  - Push `3` → stack: `[3]`
+  - Push `0` → stack: `[0; 3]`
+  - `IDiv` pops `0` and `3`, sees divisor is `0`, pushes `MExn ("DivisionByZero", "Division by zero")` onto the stack.
+- The machine sees an exception on the stack, so it runs the handler frame (`[IInt 42]`) with an empty stack:
+  - Push `42` → stack: `[42]`
+- The result is `42`.
+
+---
+
+## 6. **Printing the Result**
+
+- The type checker determined the type is `int`.
+- The value on the stack is `42`.
+- The interpreter prints:
+  ```
+  - : int = 42
+  ```

@@ -1,0 +1,42 @@
+
+(* Division by zero: should raise DivisionByZero *)
+3 / 0;;
+
+(* Normal division: should return 3 *)
+6 / 2;;
+
+(* Try-with catches division by zero: should return 42 *)
+try 3 / 0 with 42;;
+
+(* Try-with does not catch normal result: should return 3 *)
+try 6 / 2 with 99;;
+
+(* Nested try-with, only inner catches: should return 1 *)
+try (try 3 / 0 with 1) with 2;;
+
+(* Raise a general exception: should show <exception General: Raised non-exception value> *)
+raise 123;;
+
+(* Try-with catches general exception: should return 456 *)
+try raise 123 with 456;;
+
+(* Unhandled division by zero: should show <exception DivisionByZero: Division by zero> *)
+4 / 0;;
+
+(* Unhandled raise: should show <exception General: Raised non-exception value> *)
+raise 42;;
+
+(* Try-with with non-exceptional value: type error *)
+try true with 1;;
+
+(* Division with non-integer: type error *)
+3 / true;;
+
+(* Both branches raise: should show <exception General: Raised non-exception value> *)
+try raise 1 with raise 2;;
+
+(* Both branches normal: should return 5 *)
+try 5 with 6;;
+
+(* Handler raises: should show <exception General: Raised non-exception value> *)
+try 3 / 0 with raise 7;;

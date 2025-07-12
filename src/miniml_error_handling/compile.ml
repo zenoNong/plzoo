@@ -1,4 +1,4 @@
-(** MiniML compiler. *)
+(** miniml_error_handling compiler. *)
 
 open Machine
 
@@ -18,7 +18,4 @@ let rec compile {Zoo.data=e'; _} =
     | Syntax.Apply (e1, e2) -> (compile e1) @ (compile e2) @ [ICall]
     | Syntax.Divide (e1, e2) -> (compile e1) @ (compile e2) @ [IDiv]
     | Syntax.Raise e -> (compile e) @ [IRaise]
-    | Syntax.TryWith (e1, e2) -> 
-        [IPushHandler (compile e2)] @ (* Push exception handler *)
-        compile e1 @                  (* Protected code *)
-        [IPopHandler]                 (* Pop handler if no exception occurred *)
+    | Syntax.TryWith (e1, e2) -> [ITryWith (compile e1, compile e2)]

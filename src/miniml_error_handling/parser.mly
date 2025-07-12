@@ -20,7 +20,8 @@
 %token SEMISEMI
 %token EOF
 %token DIVIDE
-%token RAISE TRY WITH
+%token RAISE 
+%token TRY WITH
 
 %start file
 %type <Syntax.command list> file
@@ -121,4 +122,3 @@ mark_position(X):
   { Zoo.locate ~loc:(Zoo.make_location $startpos $endpos) x }
 
 %%
-

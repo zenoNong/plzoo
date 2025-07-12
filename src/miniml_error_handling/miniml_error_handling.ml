@@ -27,27 +27,17 @@ module MiniML = Zoo.Main (struct
       (* check the type of [e], compile it, and run it. *)
       let ty = Type_check.type_of ctx e in
       let frm = Compile.compile e in
-      try
-        let v = Machine.run frm env in
-        Zoo.print_info "- : %t = %t@." (Print.ty ty) (Print.mvalue v) ;
-        (ctx, env)
-      with
-        | Machine.Machine_error msg -> 
-            Zoo.print_error "Runtime error: %s@." msg;
-            (ctx, env)
+      let v = Machine.run frm env in
+      Zoo.print_info "- : %t = %t@." (Print.ty ty) (Print.mvalue v) ;
+      (ctx, env)
     | Syntax.Def (x, e) ->
       (* check the type of [e], compile it, run it, and return a new
 	 context-environemtn pair with [x] defined as [e]. *)
       let ty = Type_check.type_of ctx e in
       let frm = Compile.compile e in
-      try
-        let v = Machine.run frm env in
-        Zoo.print_info "%s : %t = %t@." x (Print.ty ty) (Print.mvalue v) ;
-        ((x,ty)::ctx, (x,v)::env)
-      with
-        | Machine.Machine_error msg -> 
-            Zoo.print_error "Runtime error: %s@." msg;
-            (ctx, env)
+      let v = Machine.run frm env in
+      Zoo.print_info "%s : %t = %t@." x (Print.ty ty) (Print.mvalue v) ;
+      ((x,ty)::ctx, (x,v)::env)
 end) ;;
 
 MiniML.main ()

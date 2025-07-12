@@ -7,13 +7,11 @@
 
 open Syntax
 
-exception MiniMLException of Syntax.exn
-
 (** [is_value e] returns true, if program [e] is a value. *)
 let is_value = function
   | Int _ | Bool _ | Fun _ -> true
-  | Var _ | Times _ | Plus _ | Minus _ | Divide _
-  | Equal _ | Less _ | If _ | Apply _ | Raise _ | TryWith _ -> false
+  | Var _ | Times _ | Plus _ | Minus _
+  | Equal _ | Less _ | If _ | Apply _ -> false
 
 (** An exception indicating a value. *)
 exception Value
@@ -48,17 +46,6 @@ let rec eval1 = function
       subst [(f, v1); (x, v2)] e
   | Apply (Fun _ as v1, e2) -> Apply (v1, eval1 e2)
   | Apply (e1, e2) -> Apply (eval1 e1, e2)
-  | Divide (Int k1, Int k2) ->
-      if k2 = 0 then raise (MiniMLException (DivisionByZero "division by zero"))
-      else Int (k1 / k2)
-  | Divide (Int k1, e2) -> Divide (Int k1, eval1 e2)
-  | Divide (e1, e2) -> Divide (eval1 e1, e2)
-  | Raise e ->
-      let v = eval1 e in
-      raise (MiniMLException (General (string_of_int (match v with Int n -> n | _ -> 0))))
-  | TryWith (e1, e2) ->
-      try eval1 e1 with
-      | MiniMLException _ -> eval1 e2
 
 (** [eval e] evaluates program [e]. The evaluation returns a value,
     diverges, or raises the [Runtime] exception. *)

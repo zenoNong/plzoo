@@ -1,5 +1,5 @@
 (executable
- (name miniml)
+ (name miniml_error_handling)
  (libraries zoo)
  (promote
   (until-clean)

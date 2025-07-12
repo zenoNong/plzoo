@@ -44,16 +44,10 @@ and type_of ctx {Zoo.data=e; loc} =
 	  typing_error ~loc
             "this expression is used as a function but its type is %t" (Print.ty ty)
       end
-    | Divide (e1, e2) ->
-      check ctx TInt e1 ; check ctx TInt e2 ; TInt
-    | Raise e ->
-      (* Check that the exception value has a reasonable type *)
-      let _ = type_of ctx e in
-      (* Return a dummy type - this will be checked by the context *)
-      TInt
+    | Divide (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2 ; TInt
+    | Raise e -> ignore (type_of ctx e); TInt  (* Raise can be any type, here default to TInt *)
     | TryWith (e1, e2) ->
       let ty1 = type_of ctx e1 in
       let ty2 = type_of ctx e2 in
-      if ty1 <> ty2 then
-        typing_error ~loc "Branches of try-with must have the same type, but got %t and %t" (Print.ty ty1) (Print.ty ty2);
+      if ty1 <> ty2 then typing_error ~loc "Branches of try-with must have the same type" (Print.ty ty1) (Print.ty ty2);
       ty1
